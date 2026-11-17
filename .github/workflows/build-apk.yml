@@ -22,7 +22,6 @@ jobs:
       - name: Prepare Writable Android SDK & Licenses
         run: |
           SDK_DIR="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
-          echo "Using Android SDK at: $SDK_DIR"
           sudo mkdir -p "$SDK_DIR/licenses"
           sudo chmod -R a+rwx "$SDK_DIR"
           printf "\n24333f8a63b6825ea9c5514f83c2829b004d1fee\n8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb78af6dfcb131a6481e\n" > "$SDK_DIR/licenses/android-sdk-license"
@@ -48,13 +47,19 @@ jobs:
       - name: Build Debug APK
         run: |
           set +e
-          gradle :app:assembleDebug --console=plain --stacktrace > gradle-build.log 2>&1
+          gradle :app:assembleDebug --console=plain > gradle-build.log 2>&1
           EXIT_CODE=$?
           cat gradle-build.log
           if [ $EXIT_CODE -ne 0 ]; then
-            echo "### Build Error Log (last 80 lines)" >> "$GITHUB_STEP_SUMMARY"
+            echo "### Repo Config Check" >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
-            tail -n 80 gradle-build.log >> "$GITHUB_STEP_SUMMARY"
+            ls -la app/ app/src/main/res/values/ >> "$GITHUB_STEP_SUMMARY" 2>&1
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "### Compiler / Gradle Errors" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            grep -E "^e:|Unresolved|FAILURE:|What went wrong:|Execution failed" -A 4 gradle-build.log | head -n 80 >> "$GITHUB_STEP_SUMMARY"
+            echo "---" >> "$GITHUB_STEP_SUMMARY"
+            tail -n 30 gradle-build.log >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
           fi
           exit $EXIT_CODE
