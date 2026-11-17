@@ -1,0 +1,6 @@
+{
+  "name": "Khalid Agro",
+  "description": "Direct farmer-to-buyer agricultural marketplace for Bangladesh (Krishoker Haat) with crops, seeds, livestock, live bazar rates, and AI Crop Doctor.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

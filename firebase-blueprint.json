@@ -1,0 +1,345 @@
+{
+  "entities": {
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "Authenticated user account, RBAC role, and private contact/delivery info.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "division": { "type": "string" },
+        "district": { "type": "string" },
+        "address": { "type": "string" },
+        "role": { "type": "string", "enum": ["BUYER", "WHOLESALER", "FARMER", "DELIVERY", "SUPER_ADMIN"] },
+        "farmName": { "type": "string" },
+        "farmLocation": { "type": "string" },
+        "verifiedFarmer": { "type": "boolean" },
+        "totalPurchasesCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "displayName", "role", "verifiedFarmer", "createdAt", "updatedAt"]
+    },
+    "FarmerProfile": {
+      "title": "FarmerProfile",
+      "description": "Public verified farm storefront profile for Khalid Agro sellers.",
+      "type": "object",
+      "properties": {
+        "ownerUid": { "type": "string" },
+        "name": { "type": "string" },
+        "farmName": { "type": "string" },
+        "location": { "type": "string" },
+        "division": { "type": "string" },
+        "bioEn": { "type": "string" },
+        "bioBn": { "type": "string" },
+        "specialty": { "type": "string" },
+        "verified": { "type": "boolean" },
+        "rating": { "type": "number" },
+        "totalSales": { "type": "integer" },
+        "contactPhone": { "type": "string" },
+        "whatsappNumber": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerUid", "name", "farmName", "location", "division", "verified", "createdAt", "updatedAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Agricultural crop, seed, fertilizer, or farming tool listing.",
+      "type": "object",
+      "properties": {
+        "farmerId": { "type": "string" },
+        "farmerName": { "type": "string" },
+        "farmLocation": { "type": "string" },
+        "nameEn": { "type": "string" },
+        "nameBn": { "type": "string" },
+        "category": { "type": "string", "enum": ["FRESH_CROPS", "RICE_PADDY", "MAIZE", "POTATO_ONION", "SEEDS", "FERTILIZERS", "TOOLS"] },
+        "descriptionEn": { "type": "string" },
+        "descriptionBn": { "type": "string" },
+        "imageKey": { "type": "string" },
+        "imageUri": { "type": "string" },
+        "unit": { "type": "string", "enum": ["KG", "MON", "PIECE", "PACKET", "BAG"] },
+        "grade": { "type": "string", "enum": ["A_GRADE", "B_GRADE", "STANDARD"] },
+        "organic": { "type": "boolean" },
+        "pricePerUnit": { "type": "number" },
+        "pricePerMon": { "type": "number" },
+        "wholesalePricePerUnit": { "type": "number" },
+        "minOrderQty": { "type": "number" },
+        "wholesaleMinMon": { "type": "number" },
+        "wholesaleDiscountPct": { "type": "number" },
+        "stockQty": { "type": "number" },
+        "harvestDateLabel": { "type": "string" },
+        "harvestFreshness": { "type": "string", "enum": ["TODAY", "YESTERDAY", "TWO_DAYS_AGO", "STANDARD"] },
+        "estimatedDelivery": { "type": "string" },
+        "preOrderAvailable": { "type": "boolean" },
+        "dealBadge": { "type": "string" },
+        "discountPct": { "type": "number" },
+        "salesCount": { "type": "integer" },
+        "status": { "type": "string", "enum": ["ACTIVE", "SOLD_OUT", "DRAFT"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["farmerId", "farmerName", "farmLocation", "nameEn", "nameBn", "category", "unit", "grade", "organic", "pricePerUnit", "pricePerMon", "wholesalePricePerUnit", "minOrderQty", "wholesaleMinMon", "wholesaleDiscountPct", "stockQty", "harvestFreshness", "preOrderAvailable", "salesCount", "status", "createdAt", "updatedAt"]
+    },
+    "Livestock": {
+      "title": "Livestock",
+      "description": "Verified livestock animal listing with breed, live weight, and vaccination record.",
+      "type": "object",
+      "properties": {
+        "farmerId": { "type": "string" },
+        "farmerName": { "type": "string" },
+        "farmLocation": { "type": "string" },
+        "animalNameEn": { "type": "string" },
+        "animalNameBn": { "type": "string" },
+        "category": { "type": "string", "enum": ["COW", "GOAT", "SHEEP", "CHICKEN", "DUCK"] },
+        "breed": { "type": "string" },
+        "gender": { "type": "string", "enum": ["MALE", "FEMALE"] },
+        "ageMonths": { "type": "integer" },
+        "liveWeightKg": { "type": "number" },
+        "estimatedWeightDate": { "type": "string" },
+        "price": { "type": "number" },
+        "wholesalePrice": { "type": "number" },
+        "vaccinationHistory": { "type": "string" },
+        "healthInfo": { "type": "string" },
+        "descriptionEn": { "type": "string" },
+        "descriptionBn": { "type": "string" },
+        "imageKey": { "type": "string" },
+        "imageUri": { "type": "string" },
+        "videoNote": { "type": "string" },
+        "deliveryAvailable": { "type": "boolean" },
+        "estimatedDelivery": { "type": "string" },
+        "status": { "type": "string", "enum": ["ACTIVE", "SOLD_OUT", "DRAFT"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["farmerId", "farmerName", "farmLocation", "animalNameEn", "animalNameBn", "category", "breed", "gender", "ageMonths", "liveWeightKg", "price", "wholesalePrice", "deliveryAvailable", "status", "createdAt", "updatedAt"]
+    },
+    "MarketPrice": {
+      "title": "MarketPrice",
+      "description": "Verified admin-entered Live Bazar Dor price ticker entry.",
+      "type": "object",
+      "properties": {
+        "productNameEn": { "type": "string" },
+        "productNameBn": { "type": "string" },
+        "category": { "type": "string" },
+        "currentPrice": { "type": "number" },
+        "previousPrice": { "type": "number" },
+        "unit": { "type": "string", "enum": ["KG", "MON"] },
+        "movement": { "type": "string", "enum": ["UP", "DOWN", "STABLE"] },
+        "marketLocation": { "type": "string" },
+        "verifiedBy": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productNameEn", "productNameBn", "category", "currentPrice", "previousPrice", "unit", "movement", "marketLocation", "verifiedBy", "active", "createdAt", "updatedAt"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Marketplace order linking buyer, farmer, and delivery assignee.",
+      "type": "object",
+      "properties": {
+        "buyerId": { "type": "string" },
+        "buyerName": { "type": "string" },
+        "buyerPhone": { "type": "string" },
+        "deliveryAddress": { "type": "string" },
+        "district": { "type": "string" },
+        "farmerId": { "type": "string" },
+        "farmerName": { "type": "string" },
+        "deliveryAssigneeId": { "type": "string" },
+        "itemsSummary": { "type": "string" },
+        "items": { "type": "array" },
+        "totalWeightKg": { "type": "number" },
+        "subtotal": { "type": "number" },
+        "deliveryCharge": { "type": "number" },
+        "discountAmount": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "wholesaleOrder": { "type": "boolean" },
+        "paymentMethod": { "type": "string", "enum": ["CASH_ON_DELIVERY", "BKASH_MANUAL", "NAGAD_MANUAL", "BANK_TRANSFER"] },
+        "paymentStatus": { "type": "string", "enum": ["PENDING", "PAID", "RESERVED"] },
+        "orderStatus": { "type": "string", "enum": ["PENDING", "CONFIRMED", "PACKED", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED"] },
+        "notes": { "type": "string" },
+        "deliveryConfirmationNote": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["buyerId", "buyerName", "buyerPhone", "deliveryAddress", "district", "farmerId", "farmerName", "itemsSummary", "items", "totalWeightKg", "subtotal", "deliveryCharge", "discountAmount", "totalAmount", "wholesaleOrder", "paymentMethod", "paymentStatus", "orderStatus", "createdAt", "updatedAt"]
+    },
+    "Negotiation": {
+      "title": "Negotiation",
+      "description": "Direct price negotiation thread between buyer and farmer.",
+      "type": "object",
+      "properties": {
+        "buyerId": { "type": "string" },
+        "buyerName": { "type": "string" },
+        "farmerId": { "type": "string" },
+        "farmerName": { "type": "string" },
+        "productId": { "type": "string" },
+        "productTitle": { "type": "string" },
+        "requestedQtyMon": { "type": "number" },
+        "listedPricePerUnit": { "type": "number" },
+        "offeredPricePerUnit": { "type": "number" },
+        "counterPricePerUnit": { "type": "number" },
+        "status": { "type": "string", "enum": ["OPEN", "COUNTERED", "ACCEPTED", "REJECTED"] },
+        "lastMessage": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["buyerId", "buyerName", "farmerId", "farmerName", "productId", "productTitle", "requestedQtyMon", "listedPricePerUnit", "offeredPricePerUnit", "counterPricePerUnit", "status", "lastMessage", "createdAt", "updatedAt"]
+    },
+    "NegotiationMessage": {
+      "title": "NegotiationMessage",
+      "description": "Message within a negotiation thread with denormalized participant UIDs.",
+      "type": "object",
+      "properties": {
+        "buyerId": { "type": "string" },
+        "farmerId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "text": { "type": "string" },
+        "offeredPrice": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["buyerId", "farmerId", "senderId", "senderName", "text", "createdAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Product review with explicit sampleReview labeling flag.",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "buyerId": { "type": "string" },
+        "buyerName": { "type": "string" },
+        "rating": { "type": "integer" },
+        "comment": { "type": "string" },
+        "sampleReview": { "type": "boolean" },
+        "verifiedPurchase": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productId", "buyerId", "buyerName", "rating", "comment", "sampleReview", "verifiedPurchase", "createdAt", "updatedAt"]
+    },
+    "MarketplaceSettings": {
+      "title": "MarketplaceSettings",
+      "description": "Global marketplace configuration controlled by Super Admin.",
+      "type": "object",
+      "properties": {
+        "commissionPct": { "type": "number" },
+        "baseDeliveryCharge": { "type": "number" },
+        "freeDeliveryMinAmount": { "type": "number" },
+        "wholesaleMinMon": { "type": "number" },
+        "seasonalNoticeBn": { "type": "string" },
+        "seasonalNoticeEn": { "type": "string" },
+        "publicReadable": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["commissionPct", "baseDeliveryCharge", "freeDeliveryMinAmount", "wholesaleMinMon", "publicReadable", "updatedAt"]
+    },
+    "CartItem": {
+      "title": "CartItem",
+      "description": "User-scoped shopping cart item.",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "listingType": { "type": "string", "enum": ["PRODUCT", "LIVESTOCK"] },
+        "farmerId": { "type": "string" },
+        "farmerName": { "type": "string" },
+        "titleEn": { "type": "string" },
+        "titleBn": { "type": "string" },
+        "unit": { "type": "string" },
+        "quantity": { "type": "number" },
+        "unitPrice": { "type": "number" },
+        "wholesalePrice": { "type": "number" },
+        "wholesaleMinMon": { "type": "number" },
+        "imageKey": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productId", "listingType", "farmerId", "farmerName", "titleEn", "titleBn", "unit", "quantity", "unitPrice", "wholesalePrice", "wholesaleMinMon", "createdAt", "updatedAt"]
+    },
+    "FavoriteItem": {
+      "title": "FavoriteItem",
+      "description": "User-scoped favorite product or farmer bookmark.",
+      "type": "object",
+      "properties": {
+        "targetId": { "type": "string" },
+        "targetType": { "type": "string", "enum": ["PRODUCT", "LIVESTOCK", "FARMER"] },
+        "titleEn": { "type": "string" },
+        "titleBn": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["targetId", "targetType", "titleEn", "titleBn", "createdAt"]
+    },
+    "CropDiagnosis": {
+      "title": "CropDiagnosis",
+      "description": "Saved AI Crop Doctor diagnosis record.",
+      "type": "object",
+      "properties": {
+        "cropName": { "type": "string" },
+        "symptoms": { "type": "string" },
+        "diagnosis": { "type": "string" },
+        "treatment": { "type": "string" },
+        "severity": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["cropName", "symptoms", "diagnosis", "treatment", "severity", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserAccount" },
+      "description": "Private user account profiles and roles"
+    },
+    "/farmers/{farmerId}": {
+      "schema": { "$ref": "#/entities/FarmerProfile" },
+      "description": "Public farm storefront profiles"
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Agricultural crops, seeds, fertilizers, and tools"
+    },
+    "/livestock/{livestockId}": {
+      "schema": { "$ref": "#/entities/Livestock" },
+      "description": "Verified livestock listings"
+    },
+    "/market_prices/{priceId}": {
+      "schema": { "$ref": "#/entities/MarketPrice" },
+      "description": "Verified Bazar Dor market price ticker entries"
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Buyer-to-farmer orders and delivery tracking"
+    },
+    "/negotiations/{negotiationId}": {
+      "schema": { "$ref": "#/entities/Negotiation" },
+      "description": "Price negotiation threads"
+    },
+    "/negotiations/{negotiationId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/NegotiationMessage" },
+      "description": "Messages in a negotiation thread"
+    },
+    "/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/Review" },
+      "description": "Product customer reviews"
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/MarketplaceSettings" },
+      "description": "Global marketplace configuration"
+    },
+    "/users/{userId}/cart/{cartItemId}": {
+      "schema": { "$ref": "#/entities/CartItem" },
+      "description": "User shopping cart items"
+    },
+    "/users/{userId}/favorites/{favId}": {
+      "schema": { "$ref": "#/entities/FavoriteItem" },
+      "description": "User saved favorites"
+    },
+    "/users/{userId}/crop_diagnoses/{diagId}": {
+      "schema": { "$ref": "#/entities/CropDiagnosis" },
+      "description": "Saved AI Crop Doctor diagnoses"
+    }
+  }
+}

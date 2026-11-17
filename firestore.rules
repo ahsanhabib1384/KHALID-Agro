@@ -1,0 +1,569 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: default deny everything
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL HELPERS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Zero-lookup admin check safe for list queries (verifies email_verified == true)
+    function isBootstrappedAdmin() {
+      return isSignedIn() &&
+             ('email_verified' in request.auth.token) &&
+             request.auth.token.email_verified == true &&
+             ('email' in request.auth.token) &&
+             request.auth.token.email == 'ahsanhabib5832@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() ||
+             (isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function isOptStr(data, key, maxLen) {
+      return !(key in data) || (data[key] is string && data[key].size() <= maxLen);
+    }
+
+    // --- VALIDATION HELPERS ---
+    function isValidUserAccount(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100 &&
+             data.role in ['BUYER', 'WHOLESALER', 'FARMER', 'DELIVERY', 'SUPER_ADMIN'] &&
+             data.verifiedFarmer is bool &&
+             isOptStr(data, 'email', 160) &&
+             isOptStr(data, 'phone', 30) &&
+             isOptStr(data, 'division', 60) &&
+             isOptStr(data, 'district', 60) &&
+             isOptStr(data, 'address', 300) &&
+             isOptStr(data, 'farmName', 120) &&
+             isOptStr(data, 'farmLocation', 160) &&
+             (!('totalPurchasesCount' in data) || (data.totalPurchasesCount is int && data.totalPurchasesCount >= 0)) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidFarmerProfile(data) {
+      return data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             data.farmName is string && data.farmName.size() >= 1 && data.farmName.size() <= 120 &&
+             data.location is string && data.location.size() >= 1 && data.location.size() <= 160 &&
+             data.division is string && data.division.size() >= 1 && data.division.size() <= 80 &&
+             data.verified is bool &&
+             isOptStr(data, 'bioEn', 600) &&
+             isOptStr(data, 'bioBn', 600) &&
+             isOptStr(data, 'specialty', 160) &&
+             isOptStr(data, 'contactPhone', 30) &&
+             isOptStr(data, 'whatsappNumber', 30) &&
+             (!('rating' in data) || (data.rating is number && data.rating >= 0 && data.rating <= 5)) &&
+             (!('totalSales' in data) || (data.totalSales is int && data.totalSales >= 0)) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidProduct(data) {
+      return data.farmerId is string && data.farmerId.size() >= 1 && data.farmerId.size() <= 128 &&
+             data.farmerName is string && data.farmerName.size() >= 1 && data.farmerName.size() <= 100 &&
+             data.farmLocation is string && data.farmLocation.size() >= 1 && data.farmLocation.size() <= 160 &&
+             data.nameEn is string && data.nameEn.size() >= 1 && data.nameEn.size() <= 140 &&
+             data.nameBn is string && data.nameBn.size() >= 1 && data.nameBn.size() <= 140 &&
+             data.category in ['FRESH_CROPS', 'RICE_PADDY', 'MAIZE', 'POTATO_ONION', 'SEEDS', 'FERTILIZERS', 'TOOLS'] &&
+             data.unit in ['KG', 'MON', 'PIECE', 'PACKET', 'BAG'] &&
+             data.grade in ['A_GRADE', 'B_GRADE', 'STANDARD'] &&
+             data.organic is bool &&
+             data.pricePerUnit is number && data.pricePerUnit >= 0 && data.pricePerUnit <= 10000000 &&
+             data.pricePerMon is number && data.pricePerMon >= 0 && data.pricePerMon <= 50000000 &&
+             data.wholesalePricePerUnit is number && data.wholesalePricePerUnit >= 0 && data.wholesalePricePerUnit <= 10000000 &&
+             data.minOrderQty is number && data.minOrderQty >= 0 && data.minOrderQty <= 100000 &&
+             data.wholesaleMinMon is number && data.wholesaleMinMon >= 1 && data.wholesaleMinMon <= 1000 &&
+             data.wholesaleDiscountPct is number && data.wholesaleDiscountPct >= 0 && data.wholesaleDiscountPct <= 90 &&
+             data.stockQty is number && data.stockQty >= 0 && data.stockQty <= 1000000 &&
+             data.harvestFreshness in ['TODAY', 'YESTERDAY', 'TWO_DAYS_AGO', 'STANDARD'] &&
+             data.preOrderAvailable is bool &&
+             data.salesCount is int && data.salesCount >= 0 &&
+             data.status in ['ACTIVE', 'SOLD_OUT', 'DRAFT'] &&
+             isOptStr(data, 'descriptionEn', 1200) &&
+             isOptStr(data, 'descriptionBn', 1200) &&
+             isOptStr(data, 'imageKey', 120) &&
+             isOptStr(data, 'imageUri', 500) &&
+             isOptStr(data, 'harvestDateLabel', 80) &&
+             isOptStr(data, 'estimatedDelivery', 120) &&
+             isOptStr(data, 'dealBadge', 60) &&
+             (!('discountPct' in data) || (data.discountPct is number && data.discountPct >= 0 && data.discountPct <= 90)) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidLivestock(data) {
+      return data.farmerId is string && data.farmerId.size() >= 1 && data.farmerId.size() <= 128 &&
+             data.farmerName is string && data.farmerName.size() >= 1 && data.farmerName.size() <= 100 &&
+             data.farmLocation is string && data.farmLocation.size() >= 1 && data.farmLocation.size() <= 160 &&
+             data.animalNameEn is string && data.animalNameEn.size() >= 1 && data.animalNameEn.size() <= 140 &&
+             data.animalNameBn is string && data.animalNameBn.size() >= 1 && data.animalNameBn.size() <= 140 &&
+             data.category in ['COW', 'GOAT', 'SHEEP', 'CHICKEN', 'DUCK'] &&
+             data.breed is string && data.breed.size() >= 1 && data.breed.size() <= 100 &&
+             data.gender in ['MALE', 'FEMALE'] &&
+             data.ageMonths is int && data.ageMonths >= 0 && data.ageMonths <= 360 &&
+             data.liveWeightKg is number && data.liveWeightKg >= 0 && data.liveWeightKg <= 5000 &&
+             data.price is number && data.price >= 0 && data.price <= 50000000 &&
+             data.wholesalePrice is number && data.wholesalePrice >= 0 && data.wholesalePrice <= 50000000 &&
+             data.deliveryAvailable is bool &&
+             data.status in ['ACTIVE', 'SOLD_OUT', 'DRAFT'] &&
+             isOptStr(data, 'estimatedWeightDate', 80) &&
+             isOptStr(data, 'vaccinationHistory', 600) &&
+             isOptStr(data, 'healthInfo', 600) &&
+             isOptStr(data, 'descriptionEn', 1200) &&
+             isOptStr(data, 'descriptionBn', 1200) &&
+             isOptStr(data, 'imageKey', 120) &&
+             isOptStr(data, 'imageUri', 500) &&
+             isOptStr(data, 'videoNote', 300) &&
+             isOptStr(data, 'estimatedDelivery', 120) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidMarketPrice(data) {
+      return data.productNameEn is string && data.productNameEn.size() >= 1 && data.productNameEn.size() <= 100 &&
+             data.productNameBn is string && data.productNameBn.size() >= 1 && data.productNameBn.size() <= 100 &&
+             data.category is string && data.category.size() >= 1 && data.category.size() <= 60 &&
+             data.currentPrice is number && data.currentPrice >= 0 && data.currentPrice <= 1000000 &&
+             data.previousPrice is number && data.previousPrice >= 0 && data.previousPrice <= 1000000 &&
+             data.unit in ['KG', 'MON'] &&
+             data.movement in ['UP', 'DOWN', 'STABLE'] &&
+             data.marketLocation is string && data.marketLocation.size() >= 1 && data.marketLocation.size() <= 120 &&
+             data.verifiedBy is string && data.verifiedBy.size() >= 1 && data.verifiedBy.size() <= 100 &&
+             data.active is bool &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidOrder(data) {
+      return data.buyerId is string && data.buyerId.size() >= 1 && data.buyerId.size() <= 128 &&
+             data.buyerName is string && data.buyerName.size() >= 1 && data.buyerName.size() <= 100 &&
+             data.buyerPhone is string && data.buyerPhone.size() >= 3 && data.buyerPhone.size() <= 30 &&
+             data.deliveryAddress is string && data.deliveryAddress.size() >= 3 && data.deliveryAddress.size() <= 300 &&
+             data.district is string && data.district.size() >= 2 && data.district.size() <= 80 &&
+             data.farmerId is string && data.farmerId.size() >= 1 && data.farmerId.size() <= 128 &&
+             data.farmerName is string && data.farmerName.size() >= 1 && data.farmerName.size() <= 100 &&
+             data.itemsSummary is string && data.itemsSummary.size() >= 1 && data.itemsSummary.size() <= 500 &&
+             data.items is list && data.items.size() >= 1 && data.items.size() <= 30 &&
+             data.totalWeightKg is number && data.totalWeightKg >= 0 &&
+             data.subtotal is number && data.subtotal >= 0 &&
+             data.deliveryCharge is number && data.deliveryCharge >= 0 &&
+             data.discountAmount is number && data.discountAmount >= 0 &&
+             data.totalAmount is number && data.totalAmount >= 0 &&
+             data.wholesaleOrder is bool &&
+             data.paymentMethod in ['CASH_ON_DELIVERY', 'BKASH_MANUAL', 'NAGAD_MANUAL', 'BANK_TRANSFER'] &&
+             data.paymentStatus in ['PENDING', 'PAID', 'RESERVED'] &&
+             data.orderStatus in ['PENDING', 'CONFIRMED', 'PACKED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'] &&
+             isOptStr(data, 'deliveryAssigneeId', 128) &&
+             isOptStr(data, 'notes', 500) &&
+             isOptStr(data, 'deliveryConfirmationNote', 400) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidNegotiation(data) {
+      return data.buyerId is string && data.buyerId.size() >= 1 && data.buyerId.size() <= 128 &&
+             data.buyerName is string && data.buyerName.size() >= 1 && data.buyerName.size() <= 100 &&
+             data.farmerId is string && data.farmerId.size() >= 1 && data.farmerId.size() <= 128 &&
+             data.farmerName is string && data.farmerName.size() >= 1 && data.farmerName.size() <= 100 &&
+             data.productId is string && data.productId.size() >= 1 && data.productId.size() <= 128 &&
+             data.productTitle is string && data.productTitle.size() >= 1 && data.productTitle.size() <= 160 &&
+             data.requestedQtyMon is number && data.requestedQtyMon > 0 &&
+             data.listedPricePerUnit is number && data.listedPricePerUnit >= 0 &&
+             data.offeredPricePerUnit is number && data.offeredPricePerUnit >= 0 &&
+             data.counterPricePerUnit is number && data.counterPricePerUnit >= 0 &&
+             data.status in ['OPEN', 'COUNTERED', 'ACCEPTED', 'REJECTED'] &&
+             data.lastMessage is string && data.lastMessage.size() <= 500 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidNegMessage(data) {
+      return data.buyerId is string && data.buyerId.size() >= 1 && data.buyerId.size() <= 128 &&
+             data.farmerId is string && data.farmerId.size() >= 1 && data.farmerId.size() <= 128 &&
+             data.senderId is string && data.senderId.size() >= 1 && data.senderId.size() <= 128 &&
+             data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 100 &&
+             data.text is string && data.text.size() >= 1 && data.text.size() <= 800 &&
+             (!('offeredPrice' in data) || (data.offeredPrice is number && data.offeredPrice >= 0)) &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    function isValidReview(data) {
+      return data.productId is string && data.productId.size() >= 1 && data.productId.size() <= 128 &&
+             data.buyerId is string && data.buyerId.size() >= 1 && data.buyerId.size() <= 128 &&
+             data.buyerName is string && data.buyerName.size() >= 1 && data.buyerName.size() <= 100 &&
+             data.rating is int && data.rating >= 1 && data.rating <= 5 &&
+             data.comment is string && data.comment.size() >= 1 && data.comment.size() <= 800 &&
+             data.sampleReview is bool &&
+             data.verifiedPurchase is bool &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidMarketplaceSettings(data) {
+      return data.commissionPct is number && data.commissionPct >= 0 && data.commissionPct <= 50 &&
+             data.baseDeliveryCharge is number && data.baseDeliveryCharge >= 0 && data.baseDeliveryCharge <= 100000 &&
+             data.freeDeliveryMinAmount is number && data.freeDeliveryMinAmount >= 0 &&
+             data.wholesaleMinMon is number && data.wholesaleMinMon >= 1 &&
+             isOptStr(data, 'seasonalNoticeBn', 500) &&
+             isOptStr(data, 'seasonalNoticeEn', 500) &&
+             data.publicReadable is bool &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidCartItem(data) {
+      return data.productId is string && data.productId.size() >= 1 && data.productId.size() <= 128 &&
+             data.listingType in ['PRODUCT', 'LIVESTOCK'] &&
+             data.farmerId is string && data.farmerId.size() >= 1 && data.farmerId.size() <= 128 &&
+             data.farmerName is string && data.farmerName.size() >= 1 && data.farmerName.size() <= 100 &&
+             data.titleEn is string && data.titleEn.size() >= 1 && data.titleEn.size() <= 160 &&
+             data.titleBn is string && data.titleBn.size() >= 1 && data.titleBn.size() <= 160 &&
+             data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 30 &&
+             data.quantity is number && data.quantity > 0 && data.quantity <= 100000 &&
+             data.unitPrice is number && data.unitPrice >= 0 &&
+             data.wholesalePrice is number && data.wholesalePrice >= 0 &&
+             data.wholesaleMinMon is number && data.wholesaleMinMon >= 1 &&
+             isOptStr(data, 'imageKey', 120) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidFavoriteItem(data) {
+      return data.targetId is string && data.targetId.size() >= 1 && data.targetId.size() <= 128 &&
+             data.targetType in ['PRODUCT', 'LIVESTOCK', 'FARMER'] &&
+             data.titleEn is string && data.titleEn.size() >= 1 && data.titleEn.size() <= 160 &&
+             data.titleBn is string && data.titleBn.size() >= 1 && data.titleBn.size() <= 160 &&
+             isOptStr(data, 'subtitle', 160) &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    function isValidCropDiagnosis(data) {
+      return data.cropName is string && data.cropName.size() >= 1 && data.cropName.size() <= 120 &&
+             data.symptoms is string && data.symptoms.size() >= 1 && data.symptoms.size() <= 800 &&
+             data.diagnosis is string && data.diagnosis.size() >= 1 && data.diagnosis.size() <= 1500 &&
+             data.treatment is string && data.treatment.size() >= 1 && data.treatment.size() <= 1500 &&
+             data.severity is string && data.severity.size() >= 1 && data.severity.size() <= 40 &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    // --- COLLECTIONS ---
+
+    // Admins registry (managed only by bootstrapped Super Admin)
+    match /admins/{adminId} {
+      allow get: if isOwner(adminId) || isAdmin();
+      allow list: if isBootstrappedAdmin();
+      allow create, update, delete: if isBootstrappedAdmin() && isValidId(adminId);
+    }
+
+    // Private User Accounts & RBAC Roles (strictly isolated PII)
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isBootstrappedAdmin();
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'role', 'verifiedFarmer', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'email', 'phone', 'division', 'district', 'address', 'role', 'farmName', 'farmLocation', 'verifiedFarmer', 'totalPurchasesCount', 'createdAt', 'updatedAt']) &&
+                       isValidUserAccount(incoming()) &&
+                       (isBootstrappedAdmin() || (incoming().role in ['BUYER', 'WHOLESALER', 'FARMER', 'DELIVERY'] && incoming().verifiedFarmer == false));
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isValidUserAccount(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         isAdmin() ||
+                         (
+                           request.auth.uid == userId &&
+                           incoming().verifiedFarmer == existing().verifiedFarmer &&
+                           incoming().role in ['BUYER', 'WHOLESALER', 'FARMER', 'DELIVERY'] &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'phone', 'division', 'district', 'address', 'role', 'farmName', 'farmLocation', 'totalPurchasesCount', 'updatedAt'])
+                         )
+                       );
+
+      allow delete: if isAdmin();
+
+      // User-scoped Cart
+      match /cart/{cartItemId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(cartItemId) &&
+                         incoming().keys().hasAll(['productId', 'listingType', 'farmerId', 'farmerName', 'titleEn', 'titleBn', 'unit', 'quantity', 'unitPrice', 'wholesalePrice', 'wholesaleMinMon', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['productId', 'listingType', 'farmerId', 'farmerName', 'titleEn', 'titleBn', 'unit', 'quantity', 'unitPrice', 'wholesalePrice', 'wholesaleMinMon', 'imageKey', 'createdAt', 'updatedAt']) &&
+                         isValidCartItem(incoming());
+        allow update: if isOwner(userId) && isValidId(cartItemId) &&
+                         isValidCartItem(incoming()) &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['quantity', 'unitPrice', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(cartItemId);
+      }
+
+      // User-scoped Favorites
+      match /favorites/{favId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(favId) &&
+                         incoming().keys().hasAll(['targetId', 'targetType', 'titleEn', 'titleBn', 'createdAt']) &&
+                         incoming().keys().hasOnly(['targetId', 'targetType', 'titleEn', 'titleBn', 'subtitle', 'createdAt']) &&
+                         isValidFavoriteItem(incoming());
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(favId);
+      }
+
+      // User-scoped AI Crop Doctor History
+      match /crop_diagnoses/{diagId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(diagId) &&
+                         incoming().keys().hasAll(['cropName', 'symptoms', 'diagnosis', 'treatment', 'severity', 'createdAt']) &&
+                         incoming().keys().hasOnly(['cropName', 'symptoms', 'diagnosis', 'treatment', 'severity', 'createdAt']) &&
+                         isValidCropDiagnosis(incoming());
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(diagId);
+      }
+    }
+
+    // Public Farm Storefronts
+    match /farmers/{farmerId} {
+      allow list: if isSignedIn() && (resource.data.verified == true || resource.data.ownerUid == request.auth.uid || isBootstrappedAdmin());
+      allow get: if isSignedIn() && isValidId(farmerId) && (resource.data.verified == true || resource.data.ownerUid == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() && isValidId(farmerId) &&
+                       isValidFarmerProfile(incoming()) &&
+                       (incoming().ownerUid == request.auth.uid || isAdmin()) &&
+                       (incoming().verified == false || isAdmin());
+
+      allow update: if isSignedIn() && isValidId(farmerId) &&
+                       isValidFarmerProfile(incoming()) &&
+                       incoming().ownerUid == existing().ownerUid &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         isAdmin() ||
+                         (
+                           existing().ownerUid == request.auth.uid &&
+                           incoming().verified == existing().verified &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['name', 'farmName', 'location', 'division', 'bioEn', 'bioBn', 'specialty', 'contactPhone', 'whatsappNumber', 'updatedAt'])
+                         )
+                       );
+
+      allow delete: if isAdmin();
+    }
+
+    // Marketplace Products (Crops, Seeds, Fertilizers, Tools)
+    match /products/{productId} {
+      allow list: if isSignedIn() && (resource.data.status == 'ACTIVE' || resource.data.farmerId == request.auth.uid || isBootstrappedAdmin());
+      allow get: if isSignedIn() && isValidId(productId) && (resource.data.status == 'ACTIVE' || resource.data.farmerId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() && isValidId(productId) &&
+                       isValidProduct(incoming()) &&
+                       (incoming().farmerId == request.auth.uid || isAdmin());
+
+      allow update: if isSignedIn() && isValidId(productId) &&
+                       isValidProduct(incoming()) &&
+                       incoming().farmerId == existing().farmerId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         existing().farmerId == request.auth.uid ||
+                         isAdmin() ||
+                         (
+                           existing().status == 'ACTIVE' &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['stockQty', 'salesCount', 'status', 'updatedAt']) &&
+                           incoming().stockQty >= 0 &&
+                           incoming().stockQty < existing().stockQty &&
+                           incoming().salesCount >= existing().salesCount &&
+                           incoming().status in ['ACTIVE', 'SOLD_OUT']
+                         )
+                       );
+
+      allow delete: if isSignedIn() && isValidId(productId) && (existing().farmerId == request.auth.uid || isAdmin());
+    }
+
+    // Livestock Marketplace
+    match /livestock/{livestockId} {
+      allow list: if isSignedIn() && (resource.data.status == 'ACTIVE' || resource.data.farmerId == request.auth.uid || isBootstrappedAdmin());
+      allow get: if isSignedIn() && isValidId(livestockId) && (resource.data.status == 'ACTIVE' || resource.data.farmerId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() && isValidId(livestockId) &&
+                       isValidLivestock(incoming()) &&
+                       (incoming().farmerId == request.auth.uid || isAdmin());
+
+      allow update: if isSignedIn() && isValidId(livestockId) &&
+                       isValidLivestock(incoming()) &&
+                       incoming().farmerId == existing().farmerId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         existing().farmerId == request.auth.uid ||
+                         isAdmin() ||
+                         (
+                           existing().status == 'ACTIVE' &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) &&
+                           incoming().status == 'SOLD_OUT'
+                         )
+                       );
+
+      allow delete: if isSignedIn() && isValidId(livestockId) && (existing().farmerId == request.auth.uid || isAdmin());
+    }
+
+    // Verified Live Bazar Dor Market Prices (Admin controlled)
+    match /market_prices/{priceId} {
+      allow list: if isSignedIn() && (resource.data.active == true || isBootstrappedAdmin());
+      allow get: if isSignedIn() && isValidId(priceId) && (resource.data.active == true || isAdmin());
+      allow create: if isAdmin() && isValidId(priceId) && isValidMarketPrice(incoming());
+      allow update: if isAdmin() && isValidId(priceId) && isValidMarketPrice(incoming()) && incoming().createdAt == existing().createdAt;
+      allow delete: if isAdmin() && isValidId(priceId);
+    }
+
+    // Orders (Buyer, Farmer, Assigned Delivery, Super Admin)
+    match /orders/{orderId} {
+      allow list: if isSignedIn() && (
+        resource.data.buyerId == request.auth.uid ||
+        resource.data.farmerId == request.auth.uid ||
+        resource.data.deliveryAssigneeId == request.auth.uid ||
+        isBootstrappedAdmin()
+      );
+      allow get: if isSignedIn() && isValidId(orderId) && (
+        resource.data.buyerId == request.auth.uid ||
+        resource.data.farmerId == request.auth.uid ||
+        resource.data.deliveryAssigneeId == request.auth.uid ||
+        isAdmin()
+      );
+
+      allow create: if isSignedIn() && isValidId(orderId) &&
+                       isValidOrder(incoming()) &&
+                       incoming().buyerId == request.auth.uid &&
+                       incoming().orderStatus == 'PENDING';
+
+      allow update: if isSignedIn() && isValidId(orderId) &&
+                       isValidOrder(incoming()) &&
+                       incoming().buyerId == existing().buyerId &&
+                       incoming().farmerId == existing().farmerId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         isAdmin() ||
+                         (
+                           existing().orderStatus != 'DELIVERED' &&
+                           existing().orderStatus != 'CANCELLED' &&
+                           (
+                             (
+                               existing().buyerId == request.auth.uid &&
+                               existing().orderStatus == 'PENDING' &&
+                               incoming().orderStatus == 'CANCELLED' &&
+                               incoming().diff(existing()).affectedKeys().hasOnly(['orderStatus', 'updatedAt'])
+                             ) ||
+                             (
+                               existing().farmerId == request.auth.uid &&
+                               incoming().diff(existing()).affectedKeys().hasOnly(['orderStatus', 'paymentStatus', 'deliveryAssigneeId', 'notes', 'updatedAt'])
+                             ) ||
+                             (
+                               ('deliveryAssigneeId' in existing()) &&
+                               existing().deliveryAssigneeId == request.auth.uid &&
+                               incoming().orderStatus in ['OUT_FOR_DELIVERY', 'DELIVERED'] &&
+                               incoming().diff(existing()).affectedKeys().hasOnly(['orderStatus', 'deliveryConfirmationNote', 'updatedAt'])
+                             )
+                           )
+                         )
+                       );
+
+      allow delete: if isAdmin();
+    }
+
+    // Price Negotiations & Direct Farmer-Buyer Chat
+    match /negotiations/{negotiationId} {
+      allow list: if isSignedIn() && (
+        resource.data.buyerId == request.auth.uid ||
+        resource.data.farmerId == request.auth.uid ||
+        isBootstrappedAdmin()
+      );
+      allow get: if isSignedIn() && isValidId(negotiationId) && (
+        resource.data.buyerId == request.auth.uid ||
+        resource.data.farmerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() && isValidId(negotiationId) &&
+                       isValidNegotiation(incoming()) &&
+                       incoming().buyerId == request.auth.uid;
+      allow update: if isSignedIn() && isValidId(negotiationId) &&
+                       isValidNegotiation(incoming()) &&
+                       incoming().buyerId == existing().buyerId &&
+                       incoming().farmerId == existing().farmerId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         isAdmin() ||
+                         (
+                           (existing().buyerId == request.auth.uid || existing().farmerId == request.auth.uid) &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['requestedQtyMon', 'offeredPricePerUnit', 'counterPricePerUnit', 'status', 'lastMessage', 'updatedAt'])
+                         )
+                       );
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        allow list: if isSignedIn() && (
+          resource.data.buyerId == request.auth.uid ||
+          resource.data.farmerId == request.auth.uid ||
+          isBootstrappedAdmin()
+        );
+        allow get: if isSignedIn() && isValidId(messageId) && (
+          resource.data.buyerId == request.auth.uid ||
+          resource.data.farmerId == request.auth.uid ||
+          isAdmin()
+        );
+        allow create: if isSignedIn() && isValidId(messageId) &&
+                         isValidNegMessage(incoming()) &&
+                         incoming().senderId == request.auth.uid &&
+                         (incoming().buyerId == request.auth.uid || incoming().farmerId == request.auth.uid);
+        allow update, delete: if false;
+      }
+    }
+
+    // Reviews
+    match /reviews/{reviewId} {
+      allow list: if isSignedIn() && (resource.data.rating >= 1 || isBootstrappedAdmin());
+      allow get: if isSignedIn() && isValidId(reviewId) && (resource.data.rating >= 1 || isAdmin());
+      allow create: if isSignedIn() && isValidId(reviewId) &&
+                       isValidReview(incoming()) &&
+                       incoming().buyerId == request.auth.uid &&
+                       (incoming().sampleReview == false || isAdmin());
+      allow update: if isSignedIn() && isValidId(reviewId) &&
+                       isValidReview(incoming()) &&
+                       incoming().buyerId == existing().buyerId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (existing().buyerId == request.auth.uid || isAdmin());
+      allow delete: if isSignedIn() && isValidId(reviewId) && (existing().buyerId == request.auth.uid || isAdmin());
+    }
+
+    // Marketplace Settings
+    match /settings/{settingId} {
+      allow list: if isSignedIn() && (resource.data.publicReadable == true || isBootstrappedAdmin());
+      allow get: if isSignedIn() && isValidId(settingId) && (resource.data.publicReadable == true || isAdmin());
+      allow create, update: if isAdmin() && isValidId(settingId) && isValidMarketplaceSettings(incoming());
+      allow delete: if isAdmin();
+    }
+  }
+}
